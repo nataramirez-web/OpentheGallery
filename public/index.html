@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIGITAL GARDEN</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    
+    <script>
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            var err = document.createElement('div');
+            err.style.position = 'absolute';
+            err.style.top = '10px';
+            err.style.left = '10px';
+            err.style.zIndex = '99999';
+            err.style.background = 'red';
+            err.style.color = 'white';
+            err.style.padding = '10px';
+            err.style.fontFamily = 'monospace';
+            err.innerText = "ERROR: " + msg + "\nLine: " + lineNo;
+            document.body.appendChild(err);
+            return false;
+        };
+    </script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+    
+    <!-- Post-Processing -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/environments/RoomEnvironment.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/math/SimplexNoise.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/SSAOShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/SSAOPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/FXAAShader.js"></script>
+</head>
+<body>
+    <div id="gradient-overlay"></div>
+    
+    <div id="ui-layer">
+        <div id="top-left">
+            <div>01</div>
+            <div>OPEN SPACE</div>
+        </div>
+
+        <div id="top-right">
+            <div>OBJECTS <span id="object-count">000</span></div>
+        </div>
+
+        <div id="vertical-text-left">
+            ORGANIC STUDY &nbsp;&nbsp;&nbsp;&nbsp; DIGITAL GARDEN &nbsp;&nbsp;&nbsp;&nbsp; ROOM 01
+        </div>
+
+        <div id="large-number-bg">01</div>
+
+        <div id="center-crosshair"></div>
+
+        <!-- Minecraft style hotbar -->
+        <div id="hotbar">
+            <div class="hotbar-item active" data-shape="flower">
+                <span class="num">1</span> FLOWER
+            </div>
+            <div class="hotbar-item" data-shape="leaf">
+                <span class="num">2</span> LEAF
+            </div>
+            <div class="hotbar-item" data-shape="sphere">
+                <span class="num">3</span> SPHERE
+            </div>
+            <div class="hotbar-item" data-shape="heart">
+                <span class="num">4</span> HEART
+            </div>
+            <div class="hotbar-item" data-shape="star">
+                <span class="num">5</span> STAR
+            </div>
+            <div class="hotbar-item" data-shape="stick">
+                <span class="num">6</span> STICK
+            </div>
+            <div class="hotbar-item" data-shape="spray">
+                <span class="num">7</span> SPRAY
+            </div>
+        </div>
+
+        <div id="brush-hud" class="hidden" style="position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); text-align: center; font-size: 10px; letter-spacing: 2px; opacity: 0.6; pointer-events: none; background: rgba(0,0,0,0.5); color: white; padding: 10px 20px; border-radius: 4px; backdrop-filter: blur(5px);">
+            [MANTENER CLIC] PARA PINTAR<br>
+            [RUEDA RATÓN] GROSOR: <span id="brush-size-val">1.0</span><br>
+            [SHIFT + RUEDA] OPACIDAD: <span id="brush-op-val">1.0</span>
+        </div>
+
+        <!-- Edit Mode UI (Right side, minimal) -->
+        <div id="edit-panel">
+            <div class="edit-title">MODIFY OBJECT</div>
+            
+            <div class="edit-group">
+                <label>COLOR (REFERENCE)</label>
+                <div class="color-palette">
+                    <div class="color-swatch" style="background:#ffffff" data-color="#ffffff"></div>
+                    <div class="color-swatch" style="background:#ff3366" data-color="#ff3366"></div>
+                    <div class="color-swatch" style="background:#cc0033" data-color="#cc0033"></div>
+                    <div class="color-swatch" style="background:#88aa55" data-color="#88aa55"></div>
+                    <div class="color-swatch" style="background:#111111" data-color="#111111"></div>
+                    <!-- New Gradient Swatch -->
+                    <div class="color-swatch" style="background: linear-gradient(45deg, #ff3366, #ffaa00);" data-color="gradient"></div>
+                </div>
+            </div>
+
+            <div class="edit-group">
+                <label>TRANSFORM</label>
+                <div class="slider-row"><span class="slider-label">SCALE</span><input type="range" id="scale-slider" min="0.1" max="15" step="0.1" value="1"></div>
+                <div class="slider-row"><span class="slider-label">ROT X</span><input type="range" id="rot-x-slider" min="0" max="6.28" step="0.1" value="0"></div>
+                <div class="slider-row"><span class="slider-label">ROT Y</span><input type="range" id="rot-y-slider" min="0" max="6.28" step="0.1" value="0"></div>
+                <div class="slider-row"><span class="slider-label">ROT Z</span><input type="range" id="rot-z-slider" min="0" max="6.28" step="0.1" value="0"></div>
+                
+                <label style="margin-top: 15px; display:block;">POSITION (OFFSET)</label>
+                <div class="slider-row"><span class="slider-label">POS X</span><input type="range" id="pos-x-slider" min="-5" max="5" step="0.05" value="0"></div>
+                <div class="slider-row"><span class="slider-label">POS Y</span><input type="range" id="pos-y-slider" min="-5" max="5" step="0.05" value="0"></div>
+                <div class="slider-row"><span class="slider-label">POS Z</span><input type="range" id="pos-z-slider" min="-5" max="5" step="0.05" value="0"></div>
+            </div>
+
+            <div class="edit-group action-buttons" style="display:flex; flex-direction:column; gap:5px;">
+                <button id="btn-duplicate" style="width:100%;">DUPLICATE</button>
+                <button id="btn-delete" style="width:100%; background:rgba(200,0,0,0.2); border: 1px solid rgba(200,0,0,0.5); color:#ff3333;">DELETE</button>
+                <button id="btn-close-edit" style="width:100%; background:#111; color:#fff; border-color:#000; margin-top:10px;">DONE (SAVE & RESUME)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pause Menu (Like Minecraft) -->
+    <div id="pause-menu" class="hidden">
+        <div class="pause-content">
+            <h2>GAME PAUSED</h2>
+            <button id="btn-resume">RESUME EXPLORATION</button>
+            <button id="btn-save">SAVE INSTALLATION</button>
+            <button id="btn-load">LOAD INSTALLATION</button>
+            <button id="btn-reset">CLEAR SPACE</button>
+            <div id="save-status"></div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+    <script src="multiplayer.js"></script>
+</body>
+</html>
